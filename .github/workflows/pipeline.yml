@@ -38,17 +38,27 @@ jobs:
       - name: Train model
         run: python train.py
       
+      - name: Display mlruns structure
+        run: |
+          echo "MLruns directory structure:"
+          find mlruns -type f 2>/dev/null | head -20 || echo "No mlruns directory found"
+          echo ""
+          echo "Model info content:"
+          cat model_info.txt
+      
       - name: Upload model_info
         uses: actions/upload-artifact@v4
         with:
           name: model-info
           path: model_info.txt
+          if-no-files-found: error
       
       - name: Upload mlruns
         uses: actions/upload-artifact@v4
         with:
           name: mlruns-store
           path: mlruns
+          if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest
@@ -63,7 +73,7 @@ jobs:
           python-version: "3.10"
       
       - name: Install dependencies
-        run: pip install mlflow
+        run: pip install mlflow pyyaml
       
       - name: Download model_info
         uses: actions/download-artifact@v4
@@ -76,6 +86,19 @@ jobs:
         with:
           name: mlruns-store
           path: mlruns
+      
+      - name: Verify downloaded artifacts
+        run: |
+          echo "Model info content:"
+          cat model_info.txt
+          echo ""
+          echo "MLruns structure after download:"
+          find mlruns -type f 2>/dev/null | head -20
+          echo ""
+          echo "Looking for run ID:"
+          RUN_ID=$(cat model_info.txt)
+          echo "Searching for run: $RUN_ID"
+          find mlruns -name "*$RUN_ID*" 2>/dev/null || echo "Run not found in directory structure"
       
       - name: Check threshold
         run: python check_threshold.py --model-info-path model_info.txt --threshold 0.85
