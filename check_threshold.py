@@ -4,6 +4,65 @@ import sys
 import glob
 
 
+def read_accuracy_file(file_path):
+    """Read accuracy from MLflow metrics file (handles both formats)"""
+    try:
+        with open(file_path, 'r') as f:
+            lines = f.readlines()
+        
+        print(f"File has {len(lines)} lines")
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            print(f"Processing line: {repr(line)}")
+            
+            # Try format: timestamp value step
+            parts = line.split()
+            if len(parts) >= 2:
+                try:
+                    # Try the second part as the value
+                    value = float(parts[1])
+                    if 0 <= value <= 1:
+                        return value
+                except:
+                    pass
+            
+            # Try format: timestamp value (2 parts)
+            if len(parts) == 2:
+                try:
+                    value = float(parts[1])
+                    if 0 <= value <= 1:
+                        return value
+                except:
+                    pass
+            
+            # Try format: value
+            try:
+                value = float(line)
+                if 0 <= value <= 1:
+                    return value
+            except:
+                pass
+            
+            # Try each part in the line
+            for part in parts:
+                try:
+                    value = float(part)
+                    if 0 <= value <= 1:
+                        return value
+                except:
+                    pass
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-info-path", default="model_info.txt")
@@ -25,54 +84,27 @@ def main():
     print(f"Run ID: {run_id}")
     
     # Find the accuracy file
-    accuracy = None
+    accuracy_pattern = f"mlruns/*/{run_id}/metrics/accuracy"
+    accuracy_files = glob.glob(accuracy_pattern, recursive=True)
     
-    # Method 1: Direct path pattern
-    pattern = f"mlruns/*/{run_id}/metrics/accuracy"
-    accuracy_files = glob.glob(pattern, recursive=True)
+    if not accuracy_files:
+        print(f"ERROR: Could not find accuracy file for run {run_id}")
+        print("\nSearching in all accuracy files...")
+        all_accuracy = glob.glob("mlruns/*/*/metrics/accuracy", recursive=True)
+        for acc in all_accuracy:
+            print(f"  Found: {acc}")
+        sys.exit(1)
     
-    if accuracy_files:
-        try:
-            with open(accuracy_files[0], 'r') as f:
-                accuracy = float(f.read().strip())
-            print(f"Found accuracy via direct pattern: {accuracy_files[0]}")
-        except Exception as e:
-            print(f"Error reading accuracy file: {e}")
-    
-    # Method 2: Walk through directories if pattern didn't work
-    if accuracy is None and os.path.exists("mlruns"):
-        for root, dirs, files in os.walk("mlruns"):
-            if run_id in root and "metrics" in root:
-                for file in files:
-                    if file == "accuracy":
-                        accuracy_file = os.path.join(root, file)
-                        try:
-                            with open(accuracy_file, 'r') as f:
-                                accuracy = float(f.read().strip())
-                            print(f"Found accuracy via walk: {accuracy_file}")
-                            break
-                        except:
-                            pass
-                if accuracy:
-                    break
+    # Read and parse accuracy
+    accuracy = read_accuracy_file(accuracy_files[0])
     
     if accuracy is None:
-        print(f"ERROR: Could not find accuracy for run {run_id}")
-        print("\nAvailable runs in mlruns:")
-        if os.path.exists("mlruns"):
-            for root, dirs, files in os.walk("mlruns"):
-                if "meta.yaml" in files:
-                    meta_file = os.path.join(root, "meta.yaml")
-                    try:
-                        import yaml
-                        with open(meta_file, 'r') as f:
-                            data = yaml.safe_load(f)
-                            rid = data.get('run_id', 'unknown')
-                            print(f"  - {rid[:8]}...")
-                    except:
-                        pass
+        print(f"ERROR: Could not extract accuracy from file")
+        print(f"File: {accuracy_files[0]}")
+        with open(accuracy_files[0], 'r') as f:
+            print(f"Full content:\n{f.read()}")
         sys.exit(1)
-
+    
     print(f"Accuracy: {accuracy:.4f}")
     print(f"Threshold: {args.threshold:.2f}")
 
