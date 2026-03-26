@@ -41,13 +41,13 @@ jobs:
       - name: Debug - Show mlruns structure
         run: |
           echo "MLruns directory structure:"
-          find mlruns -type f -name "*.yaml" | head -20
+          find mlruns -type f | head -30
           echo ""
           echo "Model info content:"
           cat model_info.txt
           echo ""
-          echo "Looking for accuracy metrics:"
-          find mlruns -name "accuracy.yaml" | head -5
+          echo "Looking for accuracy files:"
+          find mlruns -name "accuracy" | head -5
       
       - name: Upload model_info
         uses: actions/upload-artifact@v4
@@ -96,14 +96,17 @@ jobs:
           cat model_info.txt
           echo ""
           echo "MLruns structure after download:"
-          find mlruns -type f -name "*.yaml" | head -20
+          find mlruns -type f | head -30
           echo ""
           echo "Looking for accuracy files:"
-          find mlruns -name "accuracy.yaml" | head -5
+          find mlruns -name "accuracy" | head -5
           echo ""
           echo "Looking for run directory:"
           RUN_ID=$(cat model_info.txt)
-          find mlruns -name "*$RUN_ID*" -type d
+          find mlruns -path "*/$RUN_ID" -type d
+          echo ""
+          echo "Accuracy file content for run $RUN_ID:"
+          find mlruns -path "*/$RUN_ID/metrics/accuracy" -exec cat {} \;
       
       - name: Check threshold
         run: python check_threshold.py --model-info-path model_info.txt --threshold 0.85
