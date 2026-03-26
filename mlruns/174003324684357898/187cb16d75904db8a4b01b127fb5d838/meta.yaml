@@ -1,0 +1,14 @@
+artifact_uri: file:C:/DSAI 406/Assig_5/ml_ops_assignment_5/mlruns/174003324684357898/187cb16d75904db8a4b01b127fb5d838/artifacts
+end_time: 1774508897583
+entry_point_name: ''
+experiment_id: '174003324684357898'
+lifecycle_stage: active
+run_id: 187cb16d75904db8a4b01b127fb5d838
+run_name: aged-calf-270
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774508897532
+status: 3
+tags: []
+user_id: Ahmed Abdel Samad

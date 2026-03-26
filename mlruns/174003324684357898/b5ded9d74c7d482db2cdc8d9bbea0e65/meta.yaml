@@ -1,0 +1,14 @@
+artifact_uri: file:C:/DSAI 406/Assig_5/ml_ops_assignment_5/mlruns/174003324684357898/b5ded9d74c7d482db2cdc8d9bbea0e65/artifacts
+end_time: 1774508860230
+entry_point_name: ''
+experiment_id: '174003324684357898'
+lifecycle_stage: active
+run_id: b5ded9d74c7d482db2cdc8d9bbea0e65
+run_name: vaunted-hog-785
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1774508860119
+status: 3
+tags: []
+user_id: Ahmed Abdel Samad

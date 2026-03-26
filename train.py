@@ -11,9 +11,6 @@ def main():
     if not tracking_uri:
         raise RuntimeError("MLFLOW_TRACKING_URI is not set.")
 
-    mlruns_path = tracking_uri.replace("file:", "").strip()
-    os.makedirs(mlruns_path, exist_ok=True)
-    
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment("assignment5-classifier")
 
@@ -33,6 +30,8 @@ def main():
 
         mlflow.log_param("model_type", "LogisticRegression")
         mlflow.log_metric("accuracy", accuracy)
+        
+        mlflow.sklearn.log_model(model, "model")
 
         run_id = run.info.run_id
         with open("model_info.txt", "w", encoding="utf-8") as f:
@@ -41,9 +40,8 @@ def main():
         print(f"Run ID: {run_id}")
         print(f"Logged accuracy: {accuracy:.4f}")
         
-        experiment_id = run.info.experiment_id
-        print(f"Experiment ID: {experiment_id}")
-        print(f"MLflow files saved in: {mlruns_path}")
+        # Force flush to disk
+        mlflow.end_run()
 
 
 if __name__ == "__main__":
