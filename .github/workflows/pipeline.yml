@@ -65,4 +65,7 @@ jobs:
         run: python check_threshold.py
 
       - name: Mock build
-        run: echo "Building Docker image for Run ID: $(cat model_info.txt)"
+        shell: pwsh
+        run: |
+          $runId = Get-Content model_info.txt
+          Write-Output "Building Docker image for Run ID: $runId"
