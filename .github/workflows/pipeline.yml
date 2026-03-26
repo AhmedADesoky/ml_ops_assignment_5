@@ -17,61 +17,64 @@ jobs:
       MLFLOW_TRACKING_URI: file:${{ github.workspace }}/mlruns
       SIMULATED_ACCURACY: ${{ github.event.inputs.force_accuracy }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.10"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip uninstall -y pathspec || true
-          pip install --no-cache-dir -r requirements.txt
-          pip check
+  - name: Set simulated accuracy from workflow input
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_accuracy != '' }}
+    run: echo "SIMULATED_ACCURACY=${{ github.event.inputs.force_accuracy }}" >> $GITHUB_ENV
 
-      - name: Normalize DVC remote path in CI
-        run: |
-          if dvc remote list | grep -q "^localremote"; then
-            dvc remote modify localremote url "$GITHUB_WORKSPACE/dvc_remote"
-          else
-            echo "localremote not found, skipping remote rewrite"
-          fi
+  - name: Install dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip uninstall -y pathspec || true
+      pip install --no-cache-dir -r requirements.txt
+      pip check
 
-      - name: Pull data with DVC
-        run: |
-          dvc pull --allow-missing -v
+  - name: Normalize DVC remote path in CI
+    run: |
+      if dvc remote list | grep -q "^localremote"; then
+        dvc remote modify localremote url "$GITHUB_WORKSPACE/dvc_remote"
+      else
+        echo "localremote not found, skipping remote rewrite"
+      fi
 
-      - name: Train model and log to MLflow
-        run: |
-          python train.py
+  - name: Pull data with DVC
+    run: dvc pull --allow-missing -v
 
-      - name: Verify model_info.txt exists
-        run: |
-          test -f model_info.txt
-          echo "model_info.txt created with Run ID: $(cat model_info.txt)"
+  - name: Train model and log to MLflow
+    run: python [train.py](http://_vscodecontentref_/1)
 
-      - name: Verify mlruns exists
-        run: |
-          test -d mlruns
-          echo "mlruns directory created"
+  - name: Verify model_info.txt exists
+    run: |
+      test -f model_info.txt
+      echo "model_info.txt created with Run ID: $(cat model_info.txt)"
 
-      - name: Upload model_info artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: model-info
-          path: model_info.txt
-          if-no-files-found: error
+  - name: Verify mlruns exists
+    run: |
+      test -d mlruns
+      echo "mlruns directory created"
+      find mlruns -maxdepth 3 -type f | head -n 20 || true
 
-      - name: Upload mlruns artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlruns-store
-          path: mlruns
-          if-no-files-found: error
+  - name: Upload model_info artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: model-info
+      path: model_info.txt
+      if-no-files-found: error
+
+  - name: Upload mlruns artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: mlruns-store
+      path: mlruns
+      if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest
@@ -80,45 +83,51 @@ jobs:
       MLFLOW_TRACKING_URI: file:${{ github.workspace }}/mlruns
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip uninstall -y pathspec || true
-          pip install --no-cache-dir -r requirements.txt
-          pip check
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip uninstall -y pathspec || true
+        pip install --no-cache-dir -r requirements.txt
+        pip check
 
-      - name: Download model_info artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: model-info
-          path: .
+    - name: Download model_info artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: model-info
+        path: .
 
-      - name: Download mlruns artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mlruns-store
-          path: mlruns
+    - name: Download mlruns artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: mlruns-store
+        path: .
 
-      - name: Check threshold in MLflow
-        run: |
-          python check_threshold.py
+    - name: Normalize mlruns layout
+      run: |
+        if [ -d mlruns/mlruns ]; then
+          cp -R mlruns/mlruns/. mlruns/
+        fi
+        test -d mlruns
+        find mlruns -maxdepth 4 -type f | head -n 30 || true
 
-      - name: Mock Build
-        run: |
-          echo "Building Docker image for Run ID: $(cat model_info.txt)"
+    - name: Check threshold in MLflow
+      run: python check_threshold.py
 
-      - name: Optional Docker build with RUN_ID
-        run: |
-          if command -v docker >/dev/null 2>&1; then
-            docker build --build-arg RUN_ID=$(cat model_info.txt) -t assignment5-model:latest .
-          else
-            echo "Docker is not available on this runner, skipping optional image build."
-          fi
+    - name: Mock Build
+      run: echo "Building Docker image for Run ID: $(cat model_info.txt)"
+
+    - name: Optional Docker build with RUN_ID
+      run: |
+        if command -v docker >/dev/null 2>&1; then
+          docker build --build-arg RUN_ID=$(cat model_info.txt) -t assignment5-model:latest .
+        else
+          echo "Docker is not available on this runner, skipping optional image build."
+        fi
